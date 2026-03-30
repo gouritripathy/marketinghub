@@ -208,6 +208,28 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 API_URL_INTERNAL=http://localhost:4000
 ```
 
+### Required API Keys (LLM + Tooling)
+
+Use this as the operational checklist before running non-mock workflows.
+
+| Env Key | Used By | Required? | Notes |
+|---|---|---|---|
+| `OPENAI_API_KEY` | LeadGen structured/extraction flows | Required for full LeadGen | Used with `OPENAI_MODEL_EXTRACTION` and `OPENAI_MODEL_STRUCTURED` |
+| `ANTHROPIC_API_KEY` | LeadGen reasoning/generation flows | Required for full LeadGen | Used with `ANTHROPIC_MODEL_REASONING` and `ANTHROPIC_MODEL_GENERATION` |
+| `GROQ_API_KEY` | Content pipeline when `LLM_PROVIDER=GROQ` | Conditionally required | Not needed if using Ollama |
+| `OLLAMA_URL` + local models | Content pipeline when `LLM_PROVIDER=OLLAMA` | Conditionally required | Local runtime must be reachable from API container/host |
+| `EXA_API_KEY` | Discovery/research enrichment | Required for best LeadGen quality | Missing key reduces recall quality |
+| `FIRECRAWL_API_KEY` | Web extraction/crawling | Optional | Needed when crawl-based evidence is enabled |
+| `NINJAPEAR_API_KEY` | External enrichment | Optional | Layer-specific integration |
+| `CORESIGNAL_API_KEY` | External company/person signals | Optional | Improves candidate precision |
+| `HUNTER_API_KEY` | Email discovery | Optional | Often paired with verifier layer |
+| `ZEROBOUNCE_API_KEY` | Email verification | Optional | Improves deliverability confidence |
+| `SEARXNG_API_KEY` | SearxNG access | Optional | Only if SearxNG instance enforces key |
+
+Recommended minimum to run meaningfully:
+- Content pipeline: **either** `GROQ_API_KEY` **or** reachable `OLLAMA_URL` + models.
+- LeadGen pipeline: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`, plus at least one discovery source key (`EXA_API_KEY` recommended).
+
 ### External Services Required
 
 | Service | Purpose | Required? |
@@ -647,6 +669,7 @@ This repository is proprietary software owned by i2e Consulting. Unauthorized us
 
 | Name | Role | Module Ownership | Contact |
 |---|---|---|---|
+| Gouri Tripathy | Applied AI Engineer | LeadGen pipeline, integrations, operations handoff | gouri.tripathy@i2econsulting.com |
 | AI Labs Team | Platform Owner | Architecture, API, deployment conventions | ai-labs@i2econsulting.com |
 | MarketingHub Engineering | Maintainers | Web app, leadgen, content workflows | ai-labs@i2econsulting.com |
 
