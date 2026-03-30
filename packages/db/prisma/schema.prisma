@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  REVIEWER
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum AgentOutputType {
+  DRAFT
+  POST
+  INSIGHT
+  IMAGE_PROMPT
+}
+
+enum ApprovalStage {
+  BRAND
+  LEGAL
+  MANAGER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MemoryScope {
+  USER
+  TEAM
+  GLOBAL
+}
+
+enum MemoryType {
+  VOICE
+  RULE
+  CTA
+  PROOF
+  FAQ
+  PATTERN
+  AVOID
+}
+
+enum ContentGoal {
+  BLOG
+  LANDING
+  CASE_STUDY
+  WHITEPAPER
+  LINKEDIN
+  EMAIL
+  CUSTOM
+}
+
+enum ContentDraftStatus {
+  DRAFTING
+  IN_REVIEW
+  FINAL
+}
+
+enum ContentDraftVersionStatus {
+  DRAFT
+  SUBMITTED
+  FINAL
+  REJECTED
+}
+
+enum ContentApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_CHANGES
+}
+
+// ──────────────────────────────────────────────
+// Lead Generation Enums
+// ──────────────────────────────────────────────
+
+enum LeadCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum LeadPipelineRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum LeadLayerName {
+  CONTEXT_ENGINE
+  STRATEGY_AGENT
+  HUNTER
+  VERIFIER
+  POSTMAN
+  JUDGE
+}
+
+enum LeadLayerStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum LeadCandidateStatus {
+  DISCOVERED
+  VERIFIED
+  CONTACT_RESOLVED
+  SCORED
+  DROPPED
+}
+
+enum CreditTxType {
+  PURCHASE
+  USAGE
+  REFUND
+  BONUS
+}
+
+model Team {
+  id             String           @id @default(uuid())
+  name           String
+  creditBalance  Int              @default(0)
+  createdAt      DateTime         @default(now())
+  users          User[]
+  runs           AgentRun[]
+  leadCampaigns  LeadCampaign[]
+  creditLedger   CreditLedger[]
+
+  @@index([createdAt])
+}
+
+model User {
+  id           String         @id @default(uuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         Role           @default(MEMBER)
+  teamId       String
+  team         Team           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  createdAt    DateTime       @default(now())
+  runs         AgentRun[]
+  approvals    Approval[]     @relation("ApprovalReviewer")
+  sessions     RefreshToken[]
+  audits       AuditLog[]     @relation("AuditActor")
+  contentDrafts ContentDraft[]
+  contentApprovals ContentApprovalFeedback[] @relation("ContentApprovalReviewer")
+  leadCampaigns LeadCampaign[] @relation("LeadCampaignCreator")
+
+  @@index([teamId])
+  @@index([createdAt])
+}
+
+model AgentRun {
+  id          String          @id @default(uuid())
+  agentKey    String
+  status      AgentRunStatus  @default(QUEUED)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String
+  team        Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inputText   String
+  contextJson Json?
+  metaJson    Json?
+  outputs     AgentOutput[]
+  createdAt   DateTime        @default(now())
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([agentKey])
+  @@index([createdAt])
+}
+
+model AgentOutput {
+  id        String         @id @default(uuid())
+  runId     String
+  run       AgentRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  type      AgentOutputType
+  content   String
+  metaJson  Json?
+  isFinal   Boolean        @default(false)
+  approvals Approval[]
+  createdAt DateTime       @default(now())
+
+  @@index([runId])
+  @@index([createdAt])
+}
+
+model Approval {
+  id         String          @id @default(uuid())
+  outputId   String
+  output     AgentOutput     @relation(fields: [outputId], references: [id], onDelete: Cascade)
+  stage      ApprovalStage
+  status     ApprovalStatus  @default(PENDING)
+  reviewerId String?
+  reviewer   User?           @relation("ApprovalReviewer", fields: [reviewerId], references: [id])
+  comments   String?
+  createdAt  DateTime        @default(now())
+
+  @@index([outputId])
+  @@index([reviewerId])
+  @@index([createdAt])
+}
+
+model MemoryItem {
+  id           String      @id @default(uuid())
+  scope        MemoryScope
+  type         MemoryType
+  key          String
+  content      String
+  tags         String[]
+  confidence   Float       @default(0)
+  ownerUserId  String?
+  ownerTeamId  String?
+  lastUsedAt   DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([ownerUserId])
+  @@index([ownerTeamId])
+  @@index([createdAt])
+  @@index([tags], type: Gin)
+}
+
+model ContentDraft {
+  id              String             @id @default(uuid())
+  createdByUserId String
+  createdByUser   User               @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  contentGoal     ContentGoal
+  topic           String
+  persona         String
+  status          ContentDraftStatus @default(DRAFTING)
+  versions        ContentDraftVersion[]
+  createdAt       DateTime           @default(now())
+
+  @@index([createdByUserId])
+  @@index([contentGoal])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ContentDraftVersion {
+  id                String                    @id @default(uuid())
+  draftId           String
+  draft             ContentDraft              @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  inputSnapshotJson Json
+  briefJson         Json
+  evidenceJson      Json
+  outputJson        Json
+  humanReadable     String
+  status            ContentDraftVersionStatus @default(DRAFT)
+  approvals         ContentApprovalFeedback[]
+  createdAt         DateTime                  @default(now())
+
+  @@unique([draftId, versionNumber])
+  @@index([draftId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ContentApprovalFeedback {
+  id          String                 @id @default(uuid())
+  versionId   String
+  version     ContentDraftVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  stage       ApprovalStage
+  reviewerId  String?
+  reviewer    User?                  @relation("ContentApprovalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  comments    String?
+  decision    ContentApprovalDecision @default(PENDING)
+  tags        String[]               @default([])
+  rating      Float?
+  createdAt   DateTime               @default(now())
+
+  @@index([versionId])
+  @@index([reviewerId])
+  @@index([createdAt])
+}
+
+model PromptPattern {
+  id                 String      @id @default(uuid())
+  contentGoal        ContentGoal
+  persona            String
+  promptSnapshotJson Json
+  inputSignatureJson Json
+  formatStyle        String?
+  score              Float       @default(0)
+  createdAt          DateTime    @default(now())
+
+  @@index([contentGoal])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorUserId String?
+  actor      User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  ip         String?
+  userAgent  String?
+  metaJson   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ──────────────────────────────────────────────
+// Lead Generation Models
+// ──────────────────────────────────────────────
+
+model LeadCampaign {
+  id              String             @id @default(uuid())
+  teamId          String
+  team            Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  createdByUser   User               @relation("LeadCampaignCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  name            String
+  inputUrl        String?
+  inputText       String?
+  status          LeadCampaignStatus @default(DRAFT)
+  configJson      Json?
+  runs            LeadPipelineRun[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([teamId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeadPipelineRun {
+  id            String                @id @default(uuid())
+  campaignId    String
+  campaign      LeadCampaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status        LeadPipelineRunStatus @default(QUEUED)
+  currentLayer  LeadLayerName?
+  blueprintJson Json?
+  strategyJson  Json?
+  totalCost     Float                 @default(0)
+  creditsUsed   Int                   @default(0)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  errorMessage  String?
+  layerLogs     LeadPipelineLayerLog[]
+  candidates    LeadCandidate[]
+  results       LeadResult[]
+  createdAt     DateTime              @default(now())
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeadPipelineLayerLog {
+  id            String          @id @default(uuid())
+  runId         String
+  run           LeadPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  layer         LeadLayerName
+  status        LeadLayerStatus @default(PENDING)
+  inputJson     Json?
+  outputJson    Json?
+  telemetryJson Json?
+  llmProvider   String?
+  llmModel      String?
+  llmTokensUsed Int?
+  apiCost       Float?
+  durationMs    Int?
+  errorMessage  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([runId])
+  @@index([layer])
+  @@index([createdAt])
+}
+
+model LeadCandidate {
+  id                   String              @id @default(uuid())
+  runId                String
+  run                  LeadPipelineRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  status               LeadCandidateStatus @default(DISCOVERED)
+  rawName              String
+  rawCompany           String
+  evidenceSnippet      String?
+  sourceUrl            String?
+  sourceQuality        String?
+  verifiedFirstName    String?
+  verifiedLastName     String?
+  verifiedCompany      String?
+  verifiedTitle        String?
+  companyDomain        String?
+  verifiedEmail        String?
+  deliverabilityStatus String?
+  leadScore            Int?
+  droppedAtLayer       LeadLayerName?
+  dropReason           String?
+  layerDataJson        Json?
+  createdAt            DateTime            @default(now())
+  result               LeadResult?
+
+  @@index([runId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeadResult {
+  id                 String          @id @default(uuid())
+  candidateId        String          @unique
+  candidate          LeadCandidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  runId              String
+  run                LeadPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  firstName          String
+  lastName           String
+  company            String
+  title              String
+  email              String
+  leadScore          Int
+  salesRationale     String
+  evidenceUrl        String
+  scoreBreakdownJson Json?
+  crmPayloadJson     Json
+  exportedAt         DateTime?
+  createdAt          DateTime        @default(now())
+
+  @@index([runId])
+  @@index([leadScore])
+  @@index([createdAt])
+}
+
+model CreditLedger {
+  id          String       @id @default(uuid())
+  teamId      String
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  txType      CreditTxType
+  amount      Int
+  balance     Int
+  description String?
+  refRunId    String?
+  createdAt   DateTime     @default(now())
+
+  @@index([teamId])
+  @@index([createdAt])
+}

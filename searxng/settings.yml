@@ -1,0 +1,9 @@
+use_default_settings: true
+
+server:
+  secret_key: "68277738916347636912352249048482"
+
+search:
+  formats:
+    - html
+    - json

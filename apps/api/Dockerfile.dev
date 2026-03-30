@@ -1,0 +1,27 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+RUN corepack enable
+
+RUN apt-get update -y \
+  && apt-get install -y openssl netcat-openbsd \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/.env.example ./apps/api/
+COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY packages/db/package.json packages/db/tsconfig.json packages/db/.env.example ./packages/db/
+COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
+
+RUN pnpm install
+
+COPY . .
+
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+  && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 4000
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["pnpm", "--filter", "@marketinghub/api", "dev"]

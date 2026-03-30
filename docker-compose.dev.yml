@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: marketinghub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: "postgresql://postgres:root@db:5432/marketinghub"
+      CORS_ORIGIN: "http://localhost:3000"
+      COOKIE_DOMAIN: "localhost"
+      REDIS_URL: "redis://redis:6379"
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+      - api_app_node_modules:/app/apps/api/node_modules
+      - api_shared_node_modules:/app/packages/shared/node_modules
+      - api_db_node_modules:/app/packages/db/node_modules
+    depends_on:
+      - db
+      - redis
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/web/.env
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:4000"
+      API_URL_INTERNAL: "http://api:4000"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+      - web_app_node_modules:/app/apps/web/node_modules
+      - web_shared_node_modules:/app/packages/shared/node_modules
+    depends_on:
+      - api
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8080:8080"
+    environment:
+      SEARXNG_BASE_URL: "http://localhost:8080/"
+      SEARXNG_INSTANCE_NAME: "marketinghub-search"
+      SEARXNG_SECRET_KEY: "replace_me"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_data:/etc/searxng
+volumes:
+  pgdata:
+  redis_data:
+  api_node_modules:
+  web_node_modules:
+  api_app_node_modules:
+  api_shared_node_modules:
+  api_db_node_modules:
+  web_app_node_modules:
+  web_shared_node_modules:
+  searxng_data:

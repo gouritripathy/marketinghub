@@ -1,0 +1,25 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
+COPY apps/web/package.json apps/web/tsconfig.json apps/web/.env.example ./apps/web/
+COPY apps/web/docker-entrypoint.sh ./apps/web/docker-entrypoint.sh
+COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
+
+RUN apt-get update -y \
+  && apt-get install -y openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN pnpm install
+
+COPY . .
+
+RUN chmod +x ./apps/web/docker-entrypoint.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["sh", "-c", "sed -i 's/\\r$//' /app/apps/web/docker-entrypoint.sh && /bin/sh /app/apps/web/docker-entrypoint.sh \"$@\"", "--"]
+CMD ["pnpm", "--filter", "@marketinghub/web", "dev"]

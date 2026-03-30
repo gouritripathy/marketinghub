@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: marketinghub
+      POSTGRES_PASSWORD: marketinghub
+      POSTGRES_DB: marketinghub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: "postgresql://marketinghub:marketinghub@db:5432/marketinghub"
+      CORS_ORIGIN: "http://localhost:3000"
+      COOKIE_DOMAIN: "localhost"
+    depends_on:
+      - db
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:4000"
+      API_URL_INTERNAL: "http://api:4000"
+    depends_on:
+      - api
+volumes:
+  pgdata:
