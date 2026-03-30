@@ -670,8 +670,6 @@ This repository is proprietary software owned by i2e Consulting. Unauthorized us
 | Name | Role | Module Ownership | Contact |
 |---|---|---|---|
 | Gouri Tripathy | Applied AI Engineer | LeadGen pipeline, integrations, operations handoff | gouri.tripathy@i2econsulting.com |
-| AI Labs Team | Platform Owner | Architecture, API, deployment conventions | ai-labs@i2econsulting.com |
-| MarketingHub Engineering | Maintainers | Web app, leadgen, content workflows | ai-labs@i2econsulting.com |
 
 ### Escalation Path
 1. Open issue with reproduction and env context.
