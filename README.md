@@ -669,7 +669,7 @@ This repository is proprietary software owned by i2e Consulting. Unauthorized us
 
 | Name | Role | Module Ownership | Contact |
 |---|---|---|---|
-| Gouri Tripathy | Applied AI Engineer | LeadGen pipeline, integrations, operations handoff | gouri.tripathy@i2econsulting.com |
+| Gouri Tripathy | Full Stack Engineer | LeadGen pipeline, integrations, operations handoff | gouri.tripathy@i2econsulting.com |
 
 ### Escalation Path
 1. Open issue with reproduction and env context.
